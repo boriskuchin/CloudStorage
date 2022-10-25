@@ -55,6 +55,13 @@ public class MainController {
                             listClient.getItems().clear();
                             fillClientListView(currentDirDir);
                         } catch (Exception e) {
+                            currentDirDir = currentDirDir.getParent();
+                            listClient.getItems().clear();
+                            try {
+                                fillClientListView(currentDirDir);
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
                             e.printStackTrace();
                         }
                     }
