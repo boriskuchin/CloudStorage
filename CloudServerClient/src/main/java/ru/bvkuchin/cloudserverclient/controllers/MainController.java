@@ -1,7 +1,9 @@
 package ru.bvkuchin.cloudserverclient.controllers;
 
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.input.MouseButton;
@@ -18,6 +20,7 @@ import java.util.stream.Stream;
 public class MainController {
     public ListView listClient;
     public Label labelClient;
+    public Button deleteclient;
     Path currentDirDir = Paths.get("");
 
 
@@ -87,4 +90,20 @@ public class MainController {
         labelClient.setText(dir.toFile().getAbsolutePath());
     }
 
+    public void deleteClientAction(ActionEvent actionEvent) {
+        String fileName = listClient.getSelectionModel().getSelectedItem().toString();
+        Path filePath = Paths.get(currentDirDir + File.separator + fileName);
+
+        if (Files.isRegularFile(filePath)) {
+            try {
+                Files.delete(filePath);
+                listClient.getItems().clear();
+                fillClientListView(currentDirDir);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+    }
 }
