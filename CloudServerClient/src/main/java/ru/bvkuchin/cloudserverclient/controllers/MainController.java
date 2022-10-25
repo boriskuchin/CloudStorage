@@ -3,14 +3,17 @@ package ru.bvkuchin.cloudserverclient.controllers;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,20 +23,14 @@ import java.util.stream.Stream;
 public class MainController {
     public ListView listClient;
     public Label labelClient;
-    public Button deleteclient;
     Path currentDirDir = Paths.get("");
+    private ClientChangeNameController clientRenameController;
 
 
 
     @FXML
     void initialize() {
-        try {
-            fillClientListView(currentDirDir);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-
-        }
+        fillClientListView(currentDirDir);
 
         listClient.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
@@ -55,16 +52,10 @@ public class MainController {
                             String path = labelClient.getText() + File.separator + listClient.getSelectionModel().getSelectedItem();
                             path = path.substring(0, path.length() - 1);
                             currentDirDir = Paths.get(path);
-                            listClient.getItems().clear();
                             fillClientListView(currentDirDir);
                         } catch (Exception e) {
                             currentDirDir = currentDirDir.getParent();
-                            listClient.getItems().clear();
-                            try {
-                                fillClientListView(currentDirDir);
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
-                            }
+                            fillClientListView(currentDirDir);
                             e.printStackTrace();
                         }
                     }
@@ -75,8 +66,14 @@ public class MainController {
 
     }
 
-    private void fillClientListView(Path dir) throws IOException {
-        Stream<Path> initialFiles = Files.list(dir);
+    public void fillClientListView(Path dir) {
+        listClient.getItems().clear();
+        Stream<Path> initialFiles = null;
+        try {
+            initialFiles = Files.list(dir);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         listClient.getItems().add("..");
         initialFiles
                 .map(path -> {
@@ -102,6 +99,29 @@ public class MainController {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
+        }
+
+    }
+
+    public void renameClientAction(ActionEvent actionEvent) throws IOException {
+
+        if ((listClient.getSelectionModel().getSelectedItem() != null)
+                && Files.isRegularFile(Paths.get(String.valueOf(currentDirDir.toAbsolutePath()), File.separator, listClient.getSelectionModel().getSelectedItem().toString()))) {
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("client-rename-view.fxml"));
+            Scene scene = new Scene(fxmlLoader.load());
+            Stage stage = new Stage();
+            stage.setTitle("New Window");
+            stage.setScene(scene);
+            stage.show();
+
+            clientRenameController = fxmlLoader.getController();
+            String fileName = listClient.getSelectionModel().getSelectedItem().toString();
+            Path src = Paths.get(String.valueOf(currentDirDir.toAbsolutePath()), File.separator, fileName);
+
+            clientRenameController.setCurrentPath(src);
+            clientRenameController.setStage(stage);
+            clientRenameController.setMainController(this);
 
         }
 
