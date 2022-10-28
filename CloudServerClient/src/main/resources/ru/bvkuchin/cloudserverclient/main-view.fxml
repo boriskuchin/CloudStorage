@@ -56,7 +56,7 @@
          <children>
             <ListView fx:id="listClient"  id="listClient" layoutX="35.0" layoutY="45.0" prefHeight="402.0" prefWidth="315.0" />
             <ListView id="listServer" layoutX="456.0" layoutY="44.0" prefHeight="403.0" prefWidth="315.0" />
-            <Button id="sendCopy" layoutX="359.0" layoutY="168.0" mnemonicParsing="false" prefHeight="29.0" prefWidth="91.0" text="SendCopy" />
+            <Button id="sendCopy" onAction="#sendCopy" layoutX="359.0" layoutY="168.0" mnemonicParsing="false" prefHeight="29.0" prefWidth="91.0" text="SendCopy" />
             <Button id="getCopy" layoutX="358.0" layoutY="207.0" mnemonicParsing="false" prefHeight="28.0" prefWidth="90.0" text="GetCopy" />
             <Button onAction="#deleteClientAction" id="deleteClient" layoutX="35.0" layoutY="458.0" mnemonicParsing="false" prefHeight="28.0" prefWidth="91.0" text="Delete" />
             <Button onAction="#renameClientAction" id="renameClient" layoutX="137.0" layoutY="458.0" mnemonicParsing="false" prefHeight="27.0" prefWidth="91.0" text="Rename" />

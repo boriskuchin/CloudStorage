@@ -10,6 +10,8 @@ import javafx.scene.control.ListView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
+import ru.bvkuchin.cloudserverclient.net.Network;
+import ru.bvkuchin.cloudserverclient.senders.CmdSender;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,6 +19,7 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.Stream;
 
 
@@ -30,6 +33,15 @@ public class MainController {
 
     @FXML
     void initialize() {
+
+        CountDownLatch networkStarter = new CountDownLatch(1);
+        new Thread(() -> Network.getInstance().start(networkStarter)).start();
+        try {
+            networkStarter.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         fillClientListView(currentDirDir);
 
         listClient.setOnMouseClicked(new EventHandler<MouseEvent>() {
@@ -124,6 +136,11 @@ public class MainController {
             clientRenameController.setMainController(this);
 
         }
+
+    }
+
+    public void sendCopy(ActionEvent actionEvent) {
+        new CmdSender().sendCmd(Network.getInstance().getCurrentChannel());
 
     }
 }
