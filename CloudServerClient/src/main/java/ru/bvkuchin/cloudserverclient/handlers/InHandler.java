@@ -1,13 +1,12 @@
-package ru.bvkuchin.server.handlers;
+package ru.bvkuchin.cloudserverclient.handlers;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import ru.bvkuchin.server.controllers.ServerController;
 
 import java.io.BufferedOutputStream;
 
-public class ProtoHandler extends ChannelInboundHandlerAdapter {
+public class InHandler extends  ChannelInboundHandlerAdapter {
 
     public enum State {
         IDLE,
@@ -23,19 +22,29 @@ public class ProtoHandler extends ChannelInboundHandlerAdapter {
     private long receivedFileLength;
     private BufferedOutputStream outputStream;
 
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
+        StringBuilder sb = new StringBuilder();
+        System.out.print("Осталось " + buf.readableBytes());
+        System.out.println(" State " + currentState);
         while (buf.readableBytes() > 0) {
-            byte readed = buf.readByte();
-            System.out.print(readed);
             if (currentState == State.IDLE) {
+                byte readed = buf.readByte();
+                System.out.println("Readed " + readed);
                 if (readed == 25) {
-                    new ServerController().getFilesList();
-
+                    System.out.println(readed);
+                    sb.append((char) buf.readByte());
                 }
+
+                // если ожидание конмады и команда за запрос состава папки = 25
+
+
             }
         }
+
+        System.out.println(sb);
+
     }
 }
-

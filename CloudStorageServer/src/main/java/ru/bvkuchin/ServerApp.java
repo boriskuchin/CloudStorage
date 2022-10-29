@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import ru.bvkuchin.server.NettyServer;
 
 @Slf4j
-public class Main {
+public class ServerApp {
     public static void main(String[] args) {
         try {
             new NettyServer().run();

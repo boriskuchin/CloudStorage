@@ -7,7 +7,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import ru.bvkuchin.server.handlers.ProtoHandler;
+import ru.bvkuchin.server.handlers.ProtoInHandler;
+import ru.bvkuchin.server.handlers.StringToByteBufHandler;
 
 public class NettyServer {
     public void run() throws Exception {
@@ -22,7 +23,8 @@ public class NettyServer {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             socketChannel.pipeline().addLast(
-                                    new ProtoHandler());
+                                    new StringToByteBufHandler(),
+                                    new ProtoInHandler());
 
                         }
                     });

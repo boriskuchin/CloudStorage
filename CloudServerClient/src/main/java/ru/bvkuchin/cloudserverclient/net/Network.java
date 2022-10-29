@@ -12,7 +12,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import java.net.InetSocketAddress;
 import java.util.concurrent.*;
 
-import io.netty.util.concurrent.*;
+import ru.bvkuchin.cloudserverclient.handlers.InHandler;
 
 public class Network {
 
@@ -39,7 +39,7 @@ public class Network {
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            socketChannel.pipeline().addLast();
+                            socketChannel.pipeline().addLast(new InHandler());
                             currentChannel = socketChannel;
                         }
 
