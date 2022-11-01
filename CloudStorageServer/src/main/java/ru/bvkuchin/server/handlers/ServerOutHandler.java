@@ -7,14 +7,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 
-public class StringToByteBufHandler extends ChannelOutboundHandlerAdapter {
+import java.util.Arrays;
+
+public class ServerOutHandler extends ChannelOutboundHandlerAdapter {
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        String inMsg = (String) msg;
-        byte[] arr = ((String) msg).getBytes();
+        byte[] arr = (byte[]) msg;
         ByteBufAllocator byteBufAllocator = new PooledByteBufAllocator();
         ByteBuf buf = byteBufAllocator.buffer(arr.length);
         buf.writeBytes(arr);
         ctx.writeAndFlush(buf);
+
     }
 }

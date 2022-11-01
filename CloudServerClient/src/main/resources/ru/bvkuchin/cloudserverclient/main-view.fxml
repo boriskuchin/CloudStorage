@@ -55,7 +55,7 @@
     <AnchorPane maxHeight="-1.0" maxWidth="-1.0" prefHeight="-1.0" prefWidth="-1.0" VBox.vgrow="ALWAYS">
          <children>
             <ListView fx:id="listClient"  id="listClient" layoutX="35.0" layoutY="45.0" prefHeight="402.0" prefWidth="315.0" />
-            <ListView id="listServer" layoutX="456.0" layoutY="44.0" prefHeight="403.0" prefWidth="315.0" />
+            <ListView fx:id="listServer" id="listServer" layoutX="456.0" layoutY="44.0" prefHeight="403.0" prefWidth="315.0" />
             <Button id="sendCopy" onAction="#sendCopy" layoutX="359.0" layoutY="168.0" mnemonicParsing="false" prefHeight="29.0" prefWidth="91.0" text="SendCopy" />
             <Button id="getCopy" layoutX="358.0" layoutY="207.0" mnemonicParsing="false" prefHeight="28.0" prefWidth="90.0" text="GetCopy" />
             <Button onAction="#deleteClientAction" id="deleteClient" layoutX="35.0" layoutY="458.0" mnemonicParsing="false" prefHeight="28.0" prefWidth="91.0" text="Delete" />

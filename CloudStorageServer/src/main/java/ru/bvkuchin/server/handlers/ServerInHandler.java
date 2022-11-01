@@ -7,8 +7,9 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import ru.bvkuchin.server.controllers.ServerController;
 
 import java.io.BufferedOutputStream;
+import java.nio.charset.StandardCharsets;
 
-public class ProtoInHandler extends ChannelInboundHandlerAdapter {
+public class ServerInHandler extends ChannelInboundHandlerAdapter {
 
     public enum State {
         IDLE,
@@ -40,22 +41,32 @@ public class ProtoInHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf inBuf = (ByteBuf) msg;
         ByteBuf outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
-
-
-
         while (inBuf.readableBytes() > 0) {
             byte readed = inBuf.readByte();
             if (currentState == State.IDLE) {
                 // если ожидание конмады и команда за запрос состава папки = 25
-                if (readed == 25) {
+                if (readed == 25){
+                    byte[]  fileListMessage = new ServerController().getFilesList().getBytes(StandardCharsets.UTF_8);
                     System.out.println(new ServerController().getFilesList());
-                    outBuf.writeByte((byte) 25);
-                    ctx.writeAndFlush(outBuf);
-                    ctx.writeAndFlush(new ServerController().getFilesList());
+                    ctx.channel().writeAndFlush(new byte[]{25});
+                    System.out.println(fileListMessage.length);
+                    ctx.channel().writeAndFlush(toByteArray(fileListMessage.length));
+                    ctx.channel().writeAndFlush(fileListMessage);
+
 
                 }
             }
         }
     }
+
+    private byte[] toByteArray(int value) {
+        return new byte[] {
+                (byte)(value >> 24),
+                (byte)(value >> 16),
+                (byte)(value >> 8),
+                (byte)value};
+    }
+
+
 }
 

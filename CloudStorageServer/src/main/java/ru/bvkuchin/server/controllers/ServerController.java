@@ -17,7 +17,7 @@ public class ServerController {
         try {
 
             fileList = Files.list(currentDir);
-            fileList.map(path -> path.toString() + "//<-->//")
+            fileList.map(path -> path.toAbsolutePath().getFileName().toString() + "//<<<>>>//")
                     .forEach(sb::append);
 
         } catch (IOException e) {

@@ -1,5 +1,6 @@
 package ru.bvkuchin.cloudserverclient.controllers;
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -10,12 +11,11 @@ import javafx.scene.control.ListView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
-import ru.bvkuchin.cloudserverclient.net.Network;
+import ru.bvkuchin.cloudserverclient.net.NettyClient;
 import ru.bvkuchin.cloudserverclient.senders.CmdSender;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,16 +26,20 @@ import java.util.stream.Stream;
 public class MainController {
     public ListView listClient;
     public Label labelClient;
+    public ListView listServer;
     Path currentDirDir = Paths.get("");
     private ClientChangeNameController clientRenameController;
-
 
 
     @FXML
     void initialize() {
 
+        NettyClient.getInstance().getClientInHandler().setMainController(this);
+
+
+
         CountDownLatch networkStarter = new CountDownLatch(1);
-        new Thread(() -> Network.getInstance().start(networkStarter)).start();
+        new Thread(() -> NettyClient.getInstance().start(networkStarter)).start();
         try {
             networkStarter.await();
         } catch (InterruptedException e) {
@@ -75,7 +79,7 @@ public class MainController {
             }
         );
 
-
+        CmdSender.updateFilesInDirectory(NettyClient.getInstance().getCurrentChannel());
     }
 
     public void fillClientListView(Path dir) {
@@ -140,7 +144,22 @@ public class MainController {
     }
 
     public void sendCopy(ActionEvent actionEvent) {
-        new CmdSender().sendCmd(Network.getInstance().getCurrentChannel());
+        CmdSender.updateFilesInDirectory(NettyClient.getInstance().getCurrentChannel());
+
+    }
+
+    public void fillServerList(String string) {
+        String[] filesList = string.split("//<<<>>>//");
+        Platform.runLater(new Runnable() {
+            @Override
+            public void run() {
+                listServer.getItems().clear();
+                for (String file : filesList) {
+                    listServer.getItems().add(file);
+                }
+            }
+        });
+
 
     }
 }

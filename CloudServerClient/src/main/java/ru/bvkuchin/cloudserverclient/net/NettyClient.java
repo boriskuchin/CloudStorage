@@ -12,21 +12,28 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import java.net.InetSocketAddress;
 import java.util.concurrent.*;
 
-import ru.bvkuchin.cloudserverclient.handlers.InHandler;
+import ru.bvkuchin.cloudserverclient.handlers.ClientInHandler;
+import ru.bvkuchin.cloudserverclient.handlers.ClientOutHandler;
 
-public class Network {
+public class NettyClient {
 
-    private static Network ourInstance = new Network();
+    private static NettyClient ourInstance = new NettyClient();
     private Channel currentChannel;
 
-    private Network() {}
+    private NettyClient() {}
 
-    public static Network getInstance() {
+    public static NettyClient getInstance() {
         return ourInstance;
     }
 
     public Channel getCurrentChannel() {
         return currentChannel;
+    }
+
+    private ClientInHandler clientInHandler = new ClientInHandler();
+
+    public ClientInHandler getClientInHandler() {
+        return clientInHandler;
     }
 
     public void start(CountDownLatch countDownLatch) {
@@ -39,7 +46,9 @@ public class Network {
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            socketChannel.pipeline().addLast(new InHandler());
+                            socketChannel.pipeline().addLast(
+                                    new ClientOutHandler(),
+                                    clientInHandler);
                             currentChannel = socketChannel;
                         }
 
