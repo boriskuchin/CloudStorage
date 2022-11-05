@@ -12,7 +12,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import ru.bvkuchin.cloudserverclient.net.NettyClient;
-import ru.bvkuchin.cloudserverclient.senders.CmdSender;
+import ru.bvkuchin.cloudserverclient.utils.Sender;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,16 +27,15 @@ public class MainController {
     public ListView listClient;
     public Label labelClient;
     public ListView listServer;
-    Path currentDirDir = Paths.get("");
+    public Path currentDirDir = Paths.get("");
     private ClientChangeNameController clientRenameController;
+    private ServerChangeNameController serverRenameController;
 
 
     @FXML
     void initialize() {
 
         NettyClient.getInstance().getClientInHandler().setMainController(this);
-
-
 
         CountDownLatch networkStarter = new CountDownLatch(1);
         new Thread(() -> NettyClient.getInstance().start(networkStarter)).start();
@@ -79,7 +78,7 @@ public class MainController {
             }
         );
 
-        CmdSender.updateFilesInDirectory(NettyClient.getInstance().getCurrentChannel());
+        Sender.sendRequestDirectoryContent(NettyClient.getInstance().getCurrentChannel());
     }
 
     public void fillClientListView(Path dir) {
@@ -144,9 +143,11 @@ public class MainController {
     }
 
     public void sendCopy(ActionEvent actionEvent) {
-        CmdSender.updateFilesInDirectory(NettyClient.getInstance().getCurrentChannel());
+        Sender.sendRequestDirectoryContent(NettyClient.getInstance().getCurrentChannel());
 
     }
+
+
 
     public void fillServerList(String string) {
         String[] filesList = string.split("//<<<>>>//");
@@ -160,6 +161,32 @@ public class MainController {
             }
         });
 
+
+    }
+
+    public void deleteOnServer(ActionEvent actionEvent) {
+        Sender.sendRequestDeleteFile(NettyClient.getInstance().getCurrentChannel(),
+                listServer.getSelectionModel().getSelectedItem().toString());
+    }
+
+    public void renameServer(ActionEvent actionEvent) throws IOException {
+
+        if (listServer.getSelectionModel().getSelectedItem() != null) {
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("server-rename-view.fxml"));
+            Scene scene = new Scene(fxmlLoader.load());
+            Stage stage = new Stage();
+            stage.setTitle("New Window");
+            stage.setScene(scene);
+            stage.show();
+
+            serverRenameController = fxmlLoader.getController();
+            String currentFileName = listServer.getSelectionModel().getSelectedItem().toString();
+
+            serverRenameController.setCurrentName(currentFileName);
+            serverRenameController.setStage(stage);
+            serverRenameController.setMainController(this);
+
+        }
 
     }
 }

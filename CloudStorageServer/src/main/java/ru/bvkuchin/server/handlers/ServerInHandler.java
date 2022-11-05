@@ -6,24 +6,25 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import ru.bvkuchin.server.controllers.ServerController;
 
-import java.io.BufferedOutputStream;
 import java.nio.charset.StandardCharsets;
 
 public class ServerInHandler extends ChannelInboundHandlerAdapter {
 
+    private State currentState = State.IDLE;
+    private int deletionFileNameLength;
+    private String renamingOldFileName;
+    private String renamingNewFileName;
+    private int renamingNewFileNameLength;
+    private int renamingOldFileNameLength;
+
+
     public enum State {
         IDLE,
-        NAME_LENGTH,
-        NAME,
-        FILE_NAME,
-        FILE
-    }
+        SENDING_FILE_LIST,
+        DELETION_GETTING_FILE_NAME_LENGTH, DELETION_GETTING_FILE_NAME,
+        RENAMING_GETTING_OLD_NAME_FILE_LENGTH, RENAMING_GETTING_OLD_NAME, RENAMING_GETTING_NEW_NAME_FILE_LENGTH, RENAMING_GETTING_NEW_NAME,
 
-    private State currentState = State.IDLE;
-    private int nextLength;
-    private long fileLength;
-    private long receivedFileLength;
-    private BufferedOutputStream outputStream;
+    }
 
 
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -42,20 +43,84 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
         ByteBuf inBuf = (ByteBuf) msg;
         ByteBuf outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
         while (inBuf.readableBytes() > 0) {
-            byte readed = inBuf.readByte();
+
             if (currentState == State.IDLE) {
-                // если ожидание конмады и команда за запрос состава папки = 25
+                byte readed = inBuf.readByte();
+
                 if (readed == 25){
-                    byte[]  fileListMessage = new ServerController().getFilesList().getBytes(StandardCharsets.UTF_8);
-                    System.out.println(new ServerController().getFilesList());
-                    ctx.channel().writeAndFlush(new byte[]{25});
-                    System.out.println(fileListMessage.length);
-                    ctx.channel().writeAndFlush(toByteArray(fileListMessage.length));
-                    ctx.channel().writeAndFlush(fileListMessage);
+                    currentState = State.SENDING_FILE_LIST;
+                }
+                if (readed == 42) {
+                    currentState = State.DELETION_GETTING_FILE_NAME_LENGTH;
+                }
+                if (readed == 45) {
+                    currentState = State.RENAMING_GETTING_OLD_NAME_FILE_LENGTH;
+                }
 
+            }
+            if (currentState == State.SENDING_FILE_LIST) {
+                byte[]  fileListMessage = new String(ServerController.getFilesList()).getBytes(StandardCharsets.UTF_8);
+                ctx.channel().writeAndFlush(new byte[]{25});
+                ctx.channel().writeAndFlush(toByteArray(fileListMessage.length));
+                ctx.channel().writeAndFlush(fileListMessage);
+                currentState = State.IDLE;
+            }
 
+            if (currentState == State.DELETION_GETTING_FILE_NAME_LENGTH) {
+                if (inBuf.readableBytes() >= 4) {
+                    deletionFileNameLength = inBuf.readInt();
+                    currentState = State.DELETION_GETTING_FILE_NAME;
                 }
             }
+
+            if (currentState == State.DELETION_GETTING_FILE_NAME) {
+                if (inBuf.readableBytes() >= deletionFileNameLength) {
+                    byte[] fileName = new byte[deletionFileNameLength];
+                    inBuf.readBytes(fileName);
+                    ServerController.deleteFile(new String(fileName, StandardCharsets.UTF_8), () ->{
+                        ctx.channel().writeAndFlush(new byte[]{42}); //ответ, что удаление произошло
+                    });
+                    currentState = State.IDLE;
+                }
+
+            }
+
+            if (currentState == State.RENAMING_GETTING_OLD_NAME_FILE_LENGTH) {
+                if (inBuf.readableBytes() >= 4) {
+                    renamingOldFileNameLength = inBuf.readInt();
+                    currentState = State.RENAMING_GETTING_OLD_NAME;
+                }
+            }
+
+            if (currentState == State.RENAMING_GETTING_OLD_NAME) {
+                if (inBuf.readableBytes() >= renamingOldFileNameLength) {
+                    byte[] oldFileName = new byte[renamingOldFileNameLength];
+                    inBuf.readBytes(oldFileName);
+                    renamingOldFileName = new String(oldFileName, StandardCharsets.UTF_8);
+                    currentState = State.RENAMING_GETTING_NEW_NAME_FILE_LENGTH;
+                }
+            }
+
+            if (currentState == State.RENAMING_GETTING_NEW_NAME_FILE_LENGTH) {
+                if (inBuf.readableBytes() >= 4) {
+                    renamingNewFileNameLength = inBuf.readInt();
+                    currentState = State.RENAMING_GETTING_NEW_NAME;
+                }
+            }
+
+            if (currentState == State.RENAMING_GETTING_NEW_NAME) {
+                if (inBuf.readableBytes() >= renamingNewFileNameLength) {
+                    byte[] newFileName = new byte[renamingNewFileNameLength];
+                    inBuf.readBytes(newFileName);
+                    renamingNewFileName = new String(newFileName, StandardCharsets.UTF_8);
+                    ServerController.renameFile(renamingOldFileName, renamingNewFileName, () -> {
+                        ctx.channel().writeAndFlush(new byte[]{45});
+                    });
+
+                    currentState = State.IDLE;
+                }
+            }
+
         }
     }
 

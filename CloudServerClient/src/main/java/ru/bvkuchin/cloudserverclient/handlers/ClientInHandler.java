@@ -4,9 +4,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import ru.bvkuchin.cloudserverclient.controllers.MainController;
+import ru.bvkuchin.cloudserverclient.utils.Sender;
 
 import java.io.BufferedOutputStream;
-import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
 
 public class ClientInHandler extends  ChannelInboundHandlerAdapter {
 
@@ -25,9 +26,11 @@ public class ClientInHandler extends  ChannelInboundHandlerAdapter {
     private long receivedFileLength;
     private BufferedOutputStream outputStream;
     private int filesListLenght;
-    private long receivedFileList;
+    private int receivedFileList;
 
     private MainController mainController;
+
+
 
 
     public void setMainController(MainController mainController) {
@@ -35,7 +38,7 @@ public class ClientInHandler extends  ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object msg ) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
         StringBuilder sb = new StringBuilder();
         while (buf.readableBytes() > 0) {
@@ -43,6 +46,9 @@ public class ClientInHandler extends  ChannelInboundHandlerAdapter {
                 byte readedByte = buf.readByte();
                 if ((readedByte == 25)) {
                     currentState = State.FILE_LIST_SIZE_RECEIVING;
+                }
+                if ((readedByte == 42 || readedByte == 45)) {
+                    Sender.sendRequestDirectoryContent(ctx.channel());
                 }
             }
 
@@ -54,20 +60,13 @@ public class ClientInHandler extends  ChannelInboundHandlerAdapter {
             }
 
             if (currentState == State.GETTING_FILES_LIST) {
-                receivedFileList = 0L;
-                while (buf.readableBytes() > 0) {
-                    receivedFileList++;
-                    char readed = (char) buf.readByte();
-                    sb.append(readed);
-                    if (receivedFileList == filesListLenght) {
-                        currentState = State.IDLE;
-                        break;
-                    }
+                if (buf.readableBytes() >= filesListLenght) {
+                    byte[] fileList = new byte[filesListLenght];
+                    buf.readBytes(fileList);
+                    mainController.fillServerList(new String(fileList, StandardCharsets.UTF_8).trim());
+                    currentState = State.IDLE;
                 }
             }
         }
-
-        mainController.fillServerList(sb.toString().trim().replaceFirst("(\\r|\\n)+", ""));
-
     }
 }

@@ -15,11 +15,13 @@ public class ClientOutHandler extends ChannelOutboundHandlerAdapter {
 
 
         byte[] arr = (byte[]) msg;
+        System.out.println("Отправляется :" + Arrays.toString(arr));
 
         ByteBufAllocator byteBufAllocator = new PooledByteBufAllocator();
         ByteBuf buf = byteBufAllocator.buffer(arr.length);
         buf.writeBytes(arr);
         ctx.writeAndFlush(buf);
+
 
     }
 }
