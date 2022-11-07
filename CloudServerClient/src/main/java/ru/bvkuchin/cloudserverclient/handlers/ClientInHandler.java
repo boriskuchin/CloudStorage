@@ -47,7 +47,7 @@ public class ClientInHandler extends  ChannelInboundHandlerAdapter {
                 if ((readedByte == 25)) {
                     currentState = State.FILE_LIST_SIZE_RECEIVING;
                 }
-                if ((readedByte == 42 || readedByte == 45)) {
+                if ((readedByte == 42 || readedByte == 45 || readedByte == 99)) {
                     Sender.sendRequestDirectoryContent(ctx.channel());
                 }
             }

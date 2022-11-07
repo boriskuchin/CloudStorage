@@ -47,7 +47,7 @@ public class NettyClient {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             socketChannel.pipeline().addLast(
-                                    new ClientOutHandler(),
+//                                    new ClientOutHandler(),
                                     clientInHandler);
                             currentChannel = socketChannel;
                         }

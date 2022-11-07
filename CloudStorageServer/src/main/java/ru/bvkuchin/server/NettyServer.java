@@ -13,12 +13,6 @@ import ru.bvkuchin.server.handlers.ServerOutHandler;
 
 public class NettyServer {
 
-    private Channel currentChannel;
-    public Channel getCurrentChannel() {
-        return currentChannel;
-    }
-
-
     public void run() throws Exception {
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -33,10 +27,10 @@ public class NettyServer {
                             socketChannel.pipeline().addLast(
                                     new ServerOutHandler(),
                                     new ServerInHandler());
-                            currentChannel = socketChannel;
-
                         }
                     });
+
+
             ChannelFuture f = b.bind(1111).sync();
             f.channel().closeFuture().sync();
         }finally {

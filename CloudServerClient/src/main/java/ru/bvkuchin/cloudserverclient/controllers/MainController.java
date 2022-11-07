@@ -143,8 +143,18 @@ public class MainController {
     }
 
     public void sendCopy(ActionEvent actionEvent) {
-        Sender.sendRequestDirectoryContent(NettyClient.getInstance().getCurrentChannel());
-
+        Path file = Paths.get(currentDirDir.toString(), listClient.getSelectionModel().getSelectedItem().toString());
+        Sender.sendFile(NettyClient.getInstance().getCurrentChannel(), file, future -> {
+            if (!future.isSuccess()) {
+                future.cause().printStackTrace();
+//                Network.getInstance().stop();
+            }
+            if (future.isSuccess()) {
+                System.out.println("Файл успешно передан");
+//                Network.getInstance().stop();
+            }
+        });
+//            Sender.sendRequestDirectoryContent(NettyClient.getInstance().getCurrentChannel());
     }
 
 

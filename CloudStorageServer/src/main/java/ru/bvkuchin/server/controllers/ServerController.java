@@ -11,6 +11,9 @@ import java.util.stream.Stream;
 public class ServerController {
     private static Path currentDir = Paths.get("serverStorage");
 
+    public static Path getCurrentDir() {
+        return currentDir;
+    }
 
     public static String getFilesList() {
         StringBuilder sb = new StringBuilder();
