@@ -31,6 +31,9 @@ public class MainController {
     private ClientChangeNameController clientRenameController;
     private ServerChangeNameController serverRenameController;
 
+    public Path getCurrentDirDir() {
+        return currentDirDir;
+    }
 
     @FXML
     void initialize() {
@@ -100,12 +103,13 @@ public class MainController {
                 })
                 .forEach(s-> listClient.getItems().add(s));
         labelClient.setText(dir.toFile().getAbsolutePath());
+
     }
 
     public void deleteClientAction(ActionEvent actionEvent) {
         String fileName = listClient.getSelectionModel().getSelectedItem().toString();
-        Path filePath = Paths.get(currentDirDir + File.separator + fileName);
 
+        Path filePath = Paths.get(currentDirDir.toString(), fileName);
         if (Files.isRegularFile(filePath)) {
             try {
                 Files.delete(filePath);
@@ -175,8 +179,10 @@ public class MainController {
     }
 
     public void deleteOnServer(ActionEvent actionEvent) {
-        Sender.sendRequestDeleteFile(NettyClient.getInstance().getCurrentChannel(),
-                listServer.getSelectionModel().getSelectedItem().toString());
+        if (listServer.getSelectionModel().getSelectedItem() != null) {
+            Sender.sendRequestDeleteFile(NettyClient.getInstance().getCurrentChannel(),
+                    listServer.getSelectionModel().getSelectedItem().toString());
+        }
     }
 
     public void renameServer(ActionEvent actionEvent) throws IOException {
@@ -197,6 +203,11 @@ public class MainController {
             serverRenameController.setMainController(this);
 
         }
+
+    }
+
+    public void getCopy(ActionEvent actionEvent) {
+        Sender.sendFileRequest(NettyClient.getInstance().getCurrentChannel(), listServer.getSelectionModel().getSelectedItem().toString());
 
     }
 }

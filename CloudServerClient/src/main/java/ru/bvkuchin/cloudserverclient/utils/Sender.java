@@ -90,8 +90,6 @@ public class Sender {
 
             buf = ByteBufAllocator.DEFAULT.directBuffer(8);
             buf.writeLong(Files.size(path));
-            System.out.println("Files.size(path)" + Files.size(path));
-
             channel.writeAndFlush(buf);
 
             ChannelFuture transferOperationFuture = channel.writeAndFlush(region);
@@ -103,5 +101,21 @@ public class Sender {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static void sendFileRequest(Channel channel, String fileName) {
+        ByteBuf buf = null;
+        buf = ByteBufAllocator.DEFAULT.directBuffer(100);
+        buf.writeByte((byte) 1);
+        channel.writeAndFlush(buf);
+
+        byte[] fileNameBytes = fileName.getBytes(StandardCharsets.UTF_8);
+        buf = ByteBufAllocator.DEFAULT.directBuffer(4);
+        buf.writeInt(fileNameBytes.length);
+        channel.writeAndFlush(buf);
+
+        buf = ByteBufAllocator.DEFAULT.directBuffer(fileNameBytes.length);
+        buf.writeBytes(fileNameBytes);
+        channel.writeAndFlush(buf);
     }
 }

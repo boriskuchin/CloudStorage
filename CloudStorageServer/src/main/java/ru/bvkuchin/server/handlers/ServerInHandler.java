@@ -2,14 +2,16 @@ package ru.bvkuchin.server.handlers;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
 import ru.bvkuchin.server.controllers.ServerController;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class ServerInHandler extends ChannelInboundHandlerAdapter {
@@ -25,13 +27,15 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
     private long fileFileLength;
     private BufferedOutputStream out;
     private long receivedFileLength;
+    private int sendFileFileNameLength;
+    private String sendFileFileName;
 
 
     public enum State {
         IDLE,
         SENDING_FILE_LIST,
         DELETION_GETTING_FILE_NAME_LENGTH, DELETION_GETTING_FILE_NAME,
-        RENAMING_GETTING_OLD_NAME_FILE_LENGTH, RENAMING_GETTING_OLD_NAME, RENAMING_GETTING_NEW_NAME_FILE_LENGTH, RENAMING_GETTING_NEW_NAME, FILE_GETTING_FILE_NAME_LENGHT, FILE_GETTING_FILE_NAME, FILE_GETTING_FILE_SIZE, FILE_GETTING_FILE,
+        RENAMING_GETTING_OLD_NAME_FILE_LENGTH, RENAMING_GETTING_OLD_NAME, RENAMING_GETTING_NEW_NAME_FILE_LENGTH, RENAMING_GETTING_NEW_NAME, FILE_GETTING_FILE_NAME_LENGHT, FILE_GETTING_FILE_NAME, FILE_GETTING_FILE_SIZE, FILE_GETTING_FILE, SENDFILE_GET_FILE_NAME_LENGHT, SENDFILE_GET_GETTING_FILE_NAME, SENDFILE_GETTING_FILE_SIZE, SENDFILE_SEND, SENDFILE_SEND_FILENAME_SIZE,
 
     }
 
@@ -51,10 +55,9 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 
         ByteBuf inBuf = (ByteBuf) msg;
-        ByteBuf outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
+        ByteBuf outBuf = null;
 
         while (inBuf.readableBytes() > 0) {
-            System.out.println(currentState);
             if (currentState == State.IDLE) {
                 byte readed = inBuf.readByte();
 
@@ -70,13 +73,23 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
                 if (readed == 99) {
                     currentState = State.FILE_GETTING_FILE_NAME_LENGHT;
                 }
+                if (readed == 1) {
+                    currentState = State.SENDFILE_GET_FILE_NAME_LENGHT;
+                }
 
             }
             if (currentState == State.SENDING_FILE_LIST) {
                 byte[]  fileListMessage = new String(ServerController.getFilesList()).getBytes(StandardCharsets.UTF_8);
-                ctx.channel().writeAndFlush(new byte[]{25});
-                ctx.channel().writeAndFlush(toByteArray(fileListMessage.length));
-                ctx.channel().writeAndFlush(fileListMessage);
+
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
+                outBuf.writeByte((byte) 25);
+                ctx.channel().writeAndFlush(outBuf);
+
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(4);
+                outBuf.writeInt(fileListMessage.length);
+                ctx.channel().writeAndFlush(outBuf);
+
+                ctx.channel().writeAndFlush(Unpooled.wrappedBuffer(fileListMessage));
                 currentState = State.IDLE;
 
             }
@@ -93,7 +106,8 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
                     byte[] fileName = new byte[deletionFileNameLength];
                     inBuf.readBytes(fileName);
                     ServerController.deleteFile(new String(fileName, StandardCharsets.UTF_8), () ->{
-                        ctx.channel().writeAndFlush(new byte[]{42}); //ответ, что удаление произошло
+                        ctx.channel().writeAndFlush(ByteBufAllocator.DEFAULT.directBuffer(1).writeByte((byte) 42));
+
                     });
                     currentState = State.IDLE;
                 }
@@ -129,7 +143,7 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
                     inBuf.readBytes(newFileName);
                     renamingNewFileName = new String(newFileName, StandardCharsets.UTF_8);
                     ServerController.renameFile(renamingOldFileName, renamingNewFileName, () -> {
-                        ctx.channel().writeAndFlush(new byte[]{45});
+                        ctx.channel().writeAndFlush(ByteBufAllocator.DEFAULT.directBuffer(1).writeByte((byte) 45));
                     });
 
                     currentState = State.IDLE;
@@ -161,36 +175,67 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
             }
 
             if (currentState == State.FILE_GETTING_FILE) {
-
-
                 while (inBuf.readableBytes() > 0) {
-
-
                     out.write(inBuf.readByte());
                     receivedFileLength++;
-                    System.out.println("fileFileLength " + fileFileLength + "; receivedFileLength" + receivedFileLength);
-
                     if (fileFileLength == receivedFileLength) {
                         currentState = State.IDLE;
                         out.close();
-                        ctx.channel().writeAndFlush(new byte[]{99});
+                        outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
+                        outBuf.writeByte((byte) 99);
+                        ctx.channel().writeAndFlush(outBuf);
                         break;
                     }
-                    System.out.println(inBuf.readableBytes());
-                    System.out.println(currentState);
                 }
             }
+
+            if (currentState == State.SENDFILE_GET_FILE_NAME_LENGHT) {
+                if (inBuf.readableBytes() >= 4) {
+                    sendFileFileNameLength = inBuf.readInt();
+                    currentState = State.SENDFILE_GET_GETTING_FILE_NAME;
+                }
+            }
+
+            if (currentState == State.SENDFILE_GET_GETTING_FILE_NAME) {
+                if (inBuf.readableBytes() >= sendFileFileNameLength) {
+                    byte[] fileName = new byte[sendFileFileNameLength];
+                    inBuf.readBytes(fileName);
+                    sendFileFileName = new String(fileName, StandardCharsets.UTF_8);
+                    currentState = State.SENDFILE_SEND;
+                }
+            }
+
+            if (currentState == State.SENDFILE_SEND) {
+                Path path = Paths.get(ServerController.getCurrentDir().toString(), sendFileFileName);
+                FileRegion region = new DefaultFileRegion(path.toFile(), 0, Files.size(path));
+
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
+                outBuf.writeByte((byte) 1);
+                ctx.channel().writeAndFlush(outBuf);
+
+                byte[] fileNameBytes = path.getFileName().toString().getBytes(StandardCharsets.UTF_8);
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(4);
+                outBuf.writeInt(fileNameBytes.length);
+                ctx.channel().writeAndFlush(outBuf);
+
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(fileNameBytes.length);
+                outBuf.writeBytes(fileNameBytes);
+                ctx.channel().writeAndFlush(outBuf);
+
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(8);
+                outBuf.writeLong(Files.size(path));
+                ctx.channel().writeAndFlush(outBuf);
+
+                ChannelFuture transferOperationFuture = ctx.channel().writeAndFlush(region);
+
+                currentState = State.IDLE;
+
+            }
+
 
         }
     }
 
-    private byte[] toByteArray(int value) {
-        return new byte[] {
-                (byte)(value >> 24),
-                (byte)(value >> 16),
-                (byte)(value >> 8),
-                (byte)value};
-    }
 
 
 }
