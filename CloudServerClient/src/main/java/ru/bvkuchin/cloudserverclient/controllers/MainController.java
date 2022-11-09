@@ -185,6 +185,7 @@ public class MainController {
         }
     }
 
+
     public void renameServer(ActionEvent actionEvent) throws IOException {
 
         if (listServer.getSelectionModel().getSelectedItem() != null) {
