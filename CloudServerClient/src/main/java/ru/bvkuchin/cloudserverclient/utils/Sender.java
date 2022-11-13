@@ -40,8 +40,6 @@ public class Sender {
         buf = ByteBufAllocator.DEFAULT.directBuffer(filenameBytes.length);
         buf.writeBytes(filenameBytes);
         channel.writeAndFlush(buf);
-
-
     }
 
 
@@ -97,7 +95,6 @@ public class Sender {
                 transferOperationFuture.addListener(finishListener);
             }
 
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -118,4 +115,36 @@ public class Sender {
         buf.writeBytes(fileNameBytes);
         channel.writeAndFlush(buf);
     }
+
+    public static void sendAuthRequest(Channel channel, String login, String password, boolean isNewUser) {
+        ByteBuf buf = null;
+        buf = ByteBufAllocator.DEFAULT.directBuffer(1);
+        if (!isNewUser) {
+            buf.writeByte((byte) 21);
+        } else {
+            buf.writeByte((byte) 10);
+        }
+        channel.writeAndFlush(buf);
+
+        byte[] loginBytes = login.getBytes(StandardCharsets.UTF_8);
+        buf = ByteBufAllocator.DEFAULT.directBuffer(4);
+        buf.writeInt(loginBytes.length);
+        channel.writeAndFlush(buf);
+
+        buf = ByteBufAllocator.DEFAULT.directBuffer(loginBytes.length);
+        buf.writeBytes(loginBytes);
+        channel.writeAndFlush(buf);
+
+        byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
+        buf = ByteBufAllocator.DEFAULT.directBuffer(4);
+        buf.writeInt(passwordBytes.length);
+        channel.writeAndFlush(buf);
+
+        buf = ByteBufAllocator.DEFAULT.directBuffer(passwordBytes.length);
+        buf.writeBytes(passwordBytes);
+        channel.writeAndFlush(buf);
+
+    }
+
+
 }

@@ -1,15 +1,14 @@
 package ru.bvkuchin.cloudserverclient.handlers;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import javafx.application.Platform;
 import ru.bvkuchin.cloudserverclient.controllers.MainController;
+import ru.bvkuchin.cloudserverclient.net.NettyClient;
 import ru.bvkuchin.cloudserverclient.utils.Sender;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -65,6 +64,42 @@ public class ClientInHandler extends  ChannelInboundHandlerAdapter {
                 if ((readedByte == 42 || readedByte == 45 || readedByte == 99)) {
                     Sender.sendRequestDirectoryContent(ctx.channel());
                 }
+
+                if (readedByte == 22) {
+                    Platform.runLater(() -> mainController.showWelcomePane(true));
+                    Sender.sendRequestDirectoryContent(NettyClient.getInstance().getCurrentChannel());
+                }
+                if (readedByte == 23) {
+                    Platform.runLater(() -> {
+                        mainController.getRegErrorLabel().setVisible(true);
+                        mainController.getRegErrorLabel().setDisable(false);
+                        mainController.getRegErrorLabel().setText("Некорректное имя пользователя или пароль");
+                    } );
+                }
+                if (readedByte == 24) {
+                    Platform.runLater(() -> {
+                        mainController.getRegErrorLabel().setVisible(true);
+                        mainController.getRegErrorLabel().setDisable(false);
+                        mainController.getRegErrorLabel().setText("Пользователя не существует");
+                    } );
+                }
+                if (readedByte == 11) {
+                    Platform.runLater(() -> {
+                        mainController.getRegErrorLabel().setVisible(true);
+                        mainController.getRegErrorLabel().setDisable(false);
+                        mainController.getRegErrorLabel().setText("Пользователь добавлен");
+                    } );
+                }
+
+                if (readedByte == 12) {
+                    Platform.runLater(() -> {
+                        mainController.getRegErrorLabel().setVisible(true);
+                        mainController.getRegErrorLabel().setDisable(false);
+                        mainController.getRegErrorLabel().setText("Пользователь с таким логином уже существует");
+                    } );
+                }
+
+
             }
 
             if (currentState == State.FILE_LIST_SIZE_RECEIVING) {

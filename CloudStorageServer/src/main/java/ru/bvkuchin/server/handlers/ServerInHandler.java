@@ -5,6 +5,8 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import ru.bvkuchin.server.controllers.ServerController;
+import ru.bvkuchin.server.services.AuthService;
+import ru.bvkuchin.server.services.impl.SimpleAuthServiceImpl;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -29,13 +31,31 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
     private long receivedFileLength;
     private int sendFileFileNameLength;
     private String sendFileFileName;
-
+    private int authLoginLenght;
+    private String authLogin;
+    private int authPassLenght;
+    private String authPass;
+    private AuthService authService = ServerController.getAuthService();
+    private ServerController controller;
 
     public enum State {
         IDLE,
         SENDING_FILE_LIST,
         DELETION_GETTING_FILE_NAME_LENGTH, DELETION_GETTING_FILE_NAME,
-        RENAMING_GETTING_OLD_NAME_FILE_LENGTH, RENAMING_GETTING_OLD_NAME, RENAMING_GETTING_NEW_NAME_FILE_LENGTH, RENAMING_GETTING_NEW_NAME, FILE_GETTING_FILE_NAME_LENGHT, FILE_GETTING_FILE_NAME, FILE_GETTING_FILE_SIZE, FILE_GETTING_FILE, SENDFILE_GET_FILE_NAME_LENGHT, SENDFILE_GET_GETTING_FILE_NAME, SENDFILE_GETTING_FILE_SIZE, SENDFILE_SEND, SENDFILE_SEND_FILENAME_SIZE,
+        RENAMING_GETTING_OLD_NAME_FILE_LENGTH,
+        RENAMING_GETTING_OLD_NAME,
+        RENAMING_GETTING_NEW_NAME_FILE_LENGTH,
+        RENAMING_GETTING_NEW_NAME,
+        FILE_GETTING_FILE_NAME_LENGHT,
+        FILE_GETTING_FILE_NAME,
+        FILE_GETTING_FILE_SIZE,
+        FILE_GETTING_FILE,
+        SENDFILE_GET_FILE_NAME_LENGHT,
+        SENDFILE_GET_GETTING_FILE_NAME,
+        SENDFILE_GETTING_FILE_SIZE,
+        SENDFILE_SEND,
+        SENDFILE_SEND_FILENAME_SIZE,
+        AUTH_LOGIN_LENGHT, AUTH_GETTING_LOGIN, AUTH_PASS_LENGHT, AUTH_GETTING_PASS, AUTH_CHECK_AUTH, ADDNEWUSER_LOGIN_LENGHT, ADDNEWUSER_GETTING_LOGIN, ADDNEWUSER_PASS_LENGHT, ADDNEWUSER_GETTING_PASS, ADDNEWUSER_ADD_USER,
 
     }
 
@@ -60,7 +80,6 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
         while (inBuf.readableBytes() > 0) {
             if (currentState == State.IDLE) {
                 byte readed = inBuf.readByte();
-
                 if (readed == 25){
                     currentState = State.SENDING_FILE_LIST;
                 }
@@ -76,10 +95,17 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
                 if (readed == 1) {
                     currentState = State.SENDFILE_GET_FILE_NAME_LENGHT;
                 }
+                if (readed == 21) {
+                    currentState = State.AUTH_LOGIN_LENGHT;
+                }
+                if (readed == 10) {
+                    currentState = State.ADDNEWUSER_LOGIN_LENGHT;
+                }
 
             }
+
             if (currentState == State.SENDING_FILE_LIST) {
-                byte[]  fileListMessage = new String(ServerController.getFilesList()).getBytes(StandardCharsets.UTF_8);
+                byte[]  fileListMessage = new String(controller.getFilesList()).getBytes(StandardCharsets.UTF_8);
 
                 outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
                 outBuf.writeByte((byte) 25);
@@ -105,7 +131,7 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
                 if (inBuf.readableBytes() >= deletionFileNameLength) {
                     byte[] fileName = new byte[deletionFileNameLength];
                     inBuf.readBytes(fileName);
-                    ServerController.deleteFile(new String(fileName, StandardCharsets.UTF_8), () ->{
+                    controller.deleteFile(new String(fileName, StandardCharsets.UTF_8), () ->{
                         ctx.channel().writeAndFlush(ByteBufAllocator.DEFAULT.directBuffer(1).writeByte((byte) 42));
 
                     });
@@ -142,7 +168,7 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
                     byte[] newFileName = new byte[renamingNewFileNameLength];
                     inBuf.readBytes(newFileName);
                     renamingNewFileName = new String(newFileName, StandardCharsets.UTF_8);
-                    ServerController.renameFile(renamingOldFileName, renamingNewFileName, () -> {
+                    controller.renameFile(renamingOldFileName, renamingNewFileName, () -> {
                         ctx.channel().writeAndFlush(ByteBufAllocator.DEFAULT.directBuffer(1).writeByte((byte) 45));
                     });
 
@@ -162,10 +188,15 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
                     byte[] fileName = new byte[fileFileNameLength];
                     inBuf.readBytes(fileName);
                     receivingFileName = new String(fileName, StandardCharsets.UTF_8);
-                    out = new BufferedOutputStream( new FileOutputStream(Paths.get(ServerController.getCurrentDir() + File.separator + new String(receivingFileName)).toFile(),true));
+                    Path outFilePath = Paths.get(controller.getCurrentDir().toString(), new String(receivingFileName));
+                    if (Files.exists(outFilePath)) {
+                        Files.delete(outFilePath);
+                    }
+                    out = new BufferedOutputStream( new FileOutputStream(outFilePath.toFile(),true));
                     currentState = State.FILE_GETTING_FILE_SIZE;
                 }
             }
+
             if (currentState == State.FILE_GETTING_FILE_SIZE) {
                 if (inBuf.readableBytes() >= 8) {
                     fileFileLength = inBuf.readLong();
@@ -206,7 +237,7 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
             }
 
             if (currentState == State.SENDFILE_SEND) {
-                Path path = Paths.get(ServerController.getCurrentDir().toString(), sendFileFileName);
+                Path path = Paths.get(controller.getCurrentDir().toString(), sendFileFileName);
                 FileRegion region = new DefaultFileRegion(path.toFile(), 0, Files.size(path));
 
                 outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
@@ -232,8 +263,112 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
 
             }
 
+            if (currentState == State.AUTH_LOGIN_LENGHT) {
+                if (inBuf.readableBytes() >= 4) {
+                    authLoginLenght = inBuf.readInt();
+                    currentState = State.AUTH_GETTING_LOGIN;
+                }
+            }
+
+            if (currentState == State.AUTH_GETTING_LOGIN) {
+                if (inBuf.readableBytes() >= authLoginLenght) {
+                    byte[] authLoginBytes= new byte[authLoginLenght];
+                    inBuf.readBytes(authLoginBytes);
+                    authLogin = new String(authLoginBytes, StandardCharsets.UTF_8);
+                    currentState = State.AUTH_PASS_LENGHT;
+                }
+            }
+
+            if (currentState == State.AUTH_PASS_LENGHT) {
+                if (inBuf.readableBytes() >= 4) {
+                    authPassLenght = inBuf.readInt();
+                    currentState = State.AUTH_GETTING_PASS;
+                }
+            }
+
+            if (currentState == State.AUTH_GETTING_PASS) {
+                if (inBuf.readableBytes() >= authPassLenght) {
+                    byte[] authPassBytes= new byte[authPassLenght];
+                    inBuf.readBytes(authPassBytes);
+                    authPass = new String(authPassBytes, StandardCharsets.UTF_8);
+                    currentState = State.AUTH_CHECK_AUTH;
+                }
+            }
+
+            if (currentState == State.AUTH_CHECK_AUTH) {
+
+                byte authResult;
+                if (authService.checkUserExist(authLogin)) {
+                    if (authService.checkCredentials(authLogin, authPass)) {
+                        authResult = (byte) 22;
+                        controller = new ServerController(authLogin);
+                    } else {
+                        authResult = (byte) 23;
+                    }
+//                    authResult = authService.checkCredentials(authLogin, authPass) ? (byte) 22 : (byte) 23;
+                } else {
+                    authResult = (byte) 24;
+                }
+
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
+                outBuf.writeByte(authResult);
+                ctx.channel().writeAndFlush(outBuf);
+                currentState = State.IDLE;
+
+            }
+
+
+            if (currentState == State.ADDNEWUSER_LOGIN_LENGHT) {
+                if (inBuf.readableBytes() >= 4) {
+                    authLoginLenght = inBuf.readInt();
+                    currentState = State.ADDNEWUSER_GETTING_LOGIN;
+                }
+            }
+
+            if (currentState == State.ADDNEWUSER_GETTING_LOGIN) {
+                if (inBuf.readableBytes() >= authLoginLenght) {
+                    byte[] authLoginBytes= new byte[authLoginLenght];
+                    inBuf.readBytes(authLoginBytes);
+                    authLogin = new String(authLoginBytes, StandardCharsets.UTF_8);
+                    currentState = State.ADDNEWUSER_PASS_LENGHT;
+                }
+            }
+
+            if (currentState == State.ADDNEWUSER_PASS_LENGHT) {
+                if (inBuf.readableBytes() >= 4) {
+                    authPassLenght = inBuf.readInt();
+                    currentState = State.ADDNEWUSER_GETTING_PASS;
+                }
+            }
+
+            if (currentState == State.ADDNEWUSER_GETTING_PASS) {
+                if (inBuf.readableBytes() >= authPassLenght) {
+                    byte[] authPassBytes= new byte[authPassLenght];
+                    inBuf.readBytes(authPassBytes);
+                    authPass = new String(authPassBytes, StandardCharsets.UTF_8);
+                    currentState = State.ADDNEWUSER_ADD_USER;
+                }
+            }
+
+            if (currentState == State.ADDNEWUSER_ADD_USER) {
+                AuthService authService = new SimpleAuthServiceImpl();
+                byte authResult;
+                if (!authService.checkUserExist(authLogin)) {
+                    authService.addUser(authLogin, authPass);
+                    ServerController.createUserFolreds();
+                    authResult = (byte) 11;
+                } else {
+                    authResult = (byte) 12;
+                }
+                outBuf = ByteBufAllocator.DEFAULT.directBuffer(1);
+                outBuf.writeByte(authResult);
+                ctx.channel().writeAndFlush(outBuf);
+                currentState = State.IDLE;
+
+            }
 
         }
+
     }
 
 

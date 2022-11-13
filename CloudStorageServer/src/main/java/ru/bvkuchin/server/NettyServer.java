@@ -8,12 +8,16 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import ru.bvkuchin.server.controllers.ServerController;
 import ru.bvkuchin.server.handlers.ServerInHandler;
 import ru.bvkuchin.server.handlers.ServerOutHandler;
 
 public class NettyServer {
 
     public void run() throws Exception {
+
+        ServerController.createUserFolreds();
+
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 

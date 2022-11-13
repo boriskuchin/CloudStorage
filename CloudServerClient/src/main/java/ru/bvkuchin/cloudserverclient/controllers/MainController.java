@@ -6,10 +6,10 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
+import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import ru.bvkuchin.cloudserverclient.net.NettyClient;
 import ru.bvkuchin.cloudserverclient.utils.Sender;
@@ -28,6 +28,20 @@ public class MainController {
     public Label labelClient;
     public ListView listServer;
     public Path currentDirDir = Paths.get("");
+    public Button authButton;
+    public PasswordField passField;
+    public TextField loginField;
+    public Label labelLogin;
+    public Label labelPass;
+    public AnchorPane regAnchorePane;
+    public Button signUpButton;
+    public Label regAuthInfoLabel;
+    public Label helloLabel;
+    public Button sendCopyButton;
+    public Button getCopyButton;
+    public Button deleteServerButon;
+    public Button renameServerButton;
+
     private ClientChangeNameController clientRenameController;
     private ServerChangeNameController serverRenameController;
 
@@ -47,6 +61,13 @@ public class MainController {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        listServer.setDisable(true);
+        deleteServerButon.setDisable(true);
+        renameServerButton.setDisable(true);
+        getCopyButton.setDisable(true);
+        sendCopyButton.setDisable(true);
+
 
         fillClientListView(currentDirDir);
 
@@ -81,7 +102,7 @@ public class MainController {
             }
         );
 
-        Sender.sendRequestDirectoryContent(NettyClient.getInstance().getCurrentChannel());
+
     }
 
     public void fillClientListView(Path dir) {
@@ -107,19 +128,21 @@ public class MainController {
     }
 
     public void deleteClientAction(ActionEvent actionEvent) {
-        String fileName = listClient.getSelectionModel().getSelectedItem().toString();
-
-        Path filePath = Paths.get(currentDirDir.toString(), fileName);
-        if (Files.isRegularFile(filePath)) {
-            try {
-                Files.delete(filePath);
-                listClient.getItems().clear();
-                fillClientListView(currentDirDir);
-            } catch (IOException e) {
-                e.printStackTrace();
+        if (listClient.getSelectionModel().getSelectedItem() != null) {
+            String fileName = listClient.getSelectionModel().getSelectedItem().toString();
+            Path filePath = Paths.get(currentDirDir.toString(), fileName);
+            if (Files.isRegularFile(filePath)) {
+                try {
+                    Files.delete(filePath);
+                    listClient.getItems().clear();
+                    fillClientListView(currentDirDir);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
-
         }
+
+
 
     }
 
@@ -147,18 +170,20 @@ public class MainController {
     }
 
     public void sendCopy(ActionEvent actionEvent) {
-        Path file = Paths.get(currentDirDir.toString(), listClient.getSelectionModel().getSelectedItem().toString());
-        Sender.sendFile(NettyClient.getInstance().getCurrentChannel(), file, future -> {
-            if (!future.isSuccess()) {
-                future.cause().printStackTrace();
+        if (listClient.getSelectionModel().getSelectedItem() != null) {
+            Path file = Paths.get(currentDirDir.toString(), listClient.getSelectionModel().getSelectedItem().toString());
+            Sender.sendFile(NettyClient.getInstance().getCurrentChannel(), file, future -> {
+                if (!future.isSuccess()) {
+                    future.cause().printStackTrace();
 //                Network.getInstance().stop();
-            }
-            if (future.isSuccess()) {
-                System.out.println("Файл успешно передан");
+                }
+                if (future.isSuccess()) {
+                    System.out.println("Файл успешно передан");
 //                Network.getInstance().stop();
-            }
-        });
-//            Sender.sendRequestDirectoryContent(NettyClient.getInstance().getCurrentChannel());
+                }
+            });
+        }
+
     }
 
 
@@ -208,7 +233,81 @@ public class MainController {
     }
 
     public void getCopy(ActionEvent actionEvent) {
-        Sender.sendFileRequest(NettyClient.getInstance().getCurrentChannel(), listServer.getSelectionModel().getSelectedItem().toString());
+        if (listServer.getSelectionModel().getSelectedItem() != null) {
+            Sender.sendFileRequest(NettyClient.getInstance().getCurrentChannel(), listServer.getSelectionModel().getSelectedItem().toString());
+        }
 
+    }
+
+    public void singInButton(ActionEvent actionEvent) {
+        disableAuthErrorLabel();
+        Sender.sendAuthRequest(NettyClient.getInstance().getCurrentChannel(), loginField.getText(), passField.getText(), false);
+
+    }
+
+    public void signUp(ActionEvent actionEvent) {
+        if (passField.getText().length() == 0) {
+            getRegErrorLabel().setText("Пароль не может быть пустым");
+        } else {
+            disableAuthErrorLabel();
+            Sender.sendAuthRequest(NettyClient.getInstance().getCurrentChannel(), loginField.getText(), passField.getText(), true );
+        }
+
+    }
+
+    private void disableAuthErrorLabel() {
+        regAuthInfoLabel.setVisible(false);
+        regAuthInfoLabel.setDisable(true);
+    }
+
+    public void showWelcomePane(boolean loggedIn) {
+        if (loggedIn) {
+            helloLabel.setText("Добро пожаловать, " + loginField.getText());
+        } else {
+            helloLabel.setText("");
+        }
+
+        labelLogin.setDisable(loggedIn);
+        labelLogin.setVisible(!loggedIn);
+
+        labelPass.setVisible(!loggedIn);
+        labelPass.setDisable(loggedIn);
+
+        passField.setVisible(!loggedIn);
+        passField.setDisable(loggedIn);
+
+        loginField.setVisible(!loggedIn);
+        loginField.setDisable(loggedIn);
+
+        authButton.setVisible(!loggedIn);
+        authButton.setDisable(loggedIn);
+
+        signUpButton.setVisible(!loggedIn);
+        signUpButton.setDisable(loggedIn);
+
+        helloLabel.setVisible(loggedIn);
+        helloLabel.setDisable(!loggedIn);
+
+        listServer.setDisable(!loggedIn);
+
+        deleteServerButon.setDisable(!loggedIn);
+        renameServerButton.setDisable(!loggedIn);
+        getCopyButton.setDisable(!loggedIn);
+        sendCopyButton.setDisable(!loggedIn);
+
+    }
+
+    public Label getRegErrorLabel() {
+        return regAuthInfoLabel;
+    }
+
+    public void quit(ActionEvent actionEvent) {
+        System.exit(0);
+
+    }
+
+    public void logout(ActionEvent actionEvent) {
+        listServer.getItems().clear();
+        showWelcomePane(false);
     }
 }
