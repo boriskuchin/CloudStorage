@@ -4,12 +4,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
-import ru.bvkuchin.server.controllers.ServerController;
+import ru.bvkuchin.server.components.ServerController;
 import ru.bvkuchin.server.services.AuthService;
 import ru.bvkuchin.server.services.impl.SimpleAuthServiceImpl;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -351,7 +350,7 @@ public class ServerInHandler extends ChannelInboundHandlerAdapter {
             }
 
             if (currentState == State.ADDNEWUSER_ADD_USER) {
-                AuthService authService = new SimpleAuthServiceImpl();
+                AuthService authService = ServerController.getAuthService();
                 byte authResult;
                 if (!authService.checkUserExist(authLogin)) {
                     authService.addUser(authLogin, authPass);

@@ -17,6 +17,7 @@ public class SimpleAuthServiceImpl implements AuthService {
 
     @Override
     public void addUser(String login, String password) {
+        System.out.println("Простая авторизация");
         users.add(new User(login, password));
 
     }

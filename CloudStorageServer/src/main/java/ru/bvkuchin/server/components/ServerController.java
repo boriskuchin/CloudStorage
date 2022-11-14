@@ -1,21 +1,21 @@
-package ru.bvkuchin.server.controllers;
+package ru.bvkuchin.server.components;
 
 import ru.bvkuchin.server.callbacks.Callback;
 import ru.bvkuchin.server.models.User;
 import ru.bvkuchin.server.services.AuthService;
+import ru.bvkuchin.server.services.impl.DBAuthService;
 import ru.bvkuchin.server.services.impl.SimpleAuthServiceImpl;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.PrimitiveIterator;
 import java.util.stream.Stream;
 
 public class ServerController {
 
-    private static AuthService authService = new SimpleAuthServiceImpl();
+    //    private static AuthService authService = new SimpleAuthServiceImpl();
+    private static AuthService authService = DBAuthService.getInstance();
     private static Path rootDir = Paths.get("serverStorage");
     private Path currentDir;
     private String dir;
