@@ -38,6 +38,12 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.1.84.Final</version>
+        </dependency>
+
 
     </dependencies>
 
@@ -61,7 +67,7 @@
                         <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>ru.bvkuchin.cloudserverclient/ru.bvkuchin.cloudserverclient.ServerClient
+                            <mainClass>ru.bvkuchin.cloudserverclient/ru.bvkuchin.cloudserverclient.ClientApp
                             </mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>
